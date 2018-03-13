@@ -60,7 +60,7 @@ class CConsole{
 
 	tConsoleLineOutput  print(const char *c);
 	int getOffsetConsolePrint(int & intermid_line);
-	unsigned getNLines();
+	unsigned getTotalLines();
 
 	CConsole();
 	~CConsole();
