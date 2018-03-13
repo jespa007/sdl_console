@@ -170,9 +170,6 @@ void CConsole::drawChar(int x,int y, char c_text, int rgb){
 	}
 }
 
-
-
-
 void CConsole::toggleFullscreen(){
 	if(!fullscreen){
 		SDL_SetWindowFullscreen(pWindow, SDL_WINDOW_FULLSCREEN);
@@ -183,19 +180,15 @@ void CConsole::toggleFullscreen(){
 	fullscreen=!fullscreen;
 }
 
-
-CConsole::tConsoleLineOutput  CConsole::print(const char *c){
+CConsole::tConsoleLineOutput * CConsole::print(const char *c){
 	string str=c;
 	tConsoleLineOutput clo;
 	clo.n_lines=N_LINES_TEXT_WRAP(str);
 
-
-
 	clo.text=(char **)malloc(sizeof(char *)*clo.n_lines);
 	unsigned total_length=strlen(c);
 
-
-	for(unsigned i=0; i < clo.n_lines; i++){
+	for(int i=0; i < clo.n_lines; i++){
 		unsigned len =CHARS_PER_WIDTH;
 		if(total_length<(unsigned)CHARS_PER_WIDTH){
 			len=total_length;
@@ -207,20 +200,19 @@ CConsole::tConsoleLineOutput  CConsole::print(const char *c){
 
 		total_length-=len;
 		c+=len;
-
 	}
 
 	console_line_output.push_back(clo);
-
-	return clo;
+	return &console_line_output[console_line_output.size()-1];
 }
 
 void CConsole::printError(const char *c){
-	tConsoleLineOutput clo = print(c);
+	tConsoleLineOutput * clo = print(c);
+	clo->rgb=RMASK32;
 }
 
 void CConsole::printOut(const char *c){
-	tConsoleLineOutput clo = print(c);
+	tConsoleLineOutput * clo = print(c);
 }
 
 int CConsole::getOffsetConsolePrint(int & intermid_line){
@@ -245,7 +237,6 @@ unsigned CConsole::getTotalLines(){
 	unsigned n_lines =0;
 	for(unsigned i = 0; i < console_line_output.size(); i++){
 		n_lines+=console_line_output[i].n_lines;
-
 	}
 	return n_lines+N_LINES_TEXT_WRAP(output);
 }
@@ -262,12 +253,9 @@ bool CConsole::update(){
 	int offsetY=0;
 	SDL_Rect * rect=0;
 
-	//offsetY=(getTotalLines()-N_LINES_TEXT_WRAP(output))*font->getCharHeight();
-
-
 	for(unsigned i=offset; i < console_line_output.size(); i++){
 		for(int l=((int)i==offset)?intermid:0; l < console_line_output[i].n_lines; l++){
-			rect=drawText(0,offsetY,console_line_output[i].text[l]);
+			rect=drawText(0,offsetY,console_line_output[i].text[l],console_line_output[i].rgb);
 			offsetY+=rect->h;
 		}
 	}
@@ -293,7 +281,7 @@ bool CConsole::update(){
 					case SDLK_ESCAPE:
 						return false;
 						break;
-					case SDLK_F5:  break;
+					case SDLK_F5: printError("hello"); break;
 					case SDLK_F9: toggleFullscreen(); break;
 					case SDLK_BACKSPACE:
 						if(output.length() > 0){
@@ -317,7 +305,7 @@ bool CConsole::update(){
 	}
 
 	if(cr){
-		tConsoleLineOutput clo=print(output.c_str());
+		tConsoleLineOutput * clo=print(output.c_str());
 		//total_lines+=clo.n_lines;
 		output="";
 		cr=false;

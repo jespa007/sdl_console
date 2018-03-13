@@ -58,7 +58,7 @@ class CConsole{
 	SDL_Rect * drawText(int x,int y,  const char * text, int rgb=-1);
 	void drawChar(int x,int y,  const char c, int rgb=-1);
 
-	tConsoleLineOutput  print(const char *c);
+	tConsoleLineOutput * print(const char *c);
 	int getOffsetConsolePrint(int & intermid_line);
 	unsigned getTotalLines();
 
