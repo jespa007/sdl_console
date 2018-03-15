@@ -82,12 +82,8 @@ void CConsole::setFont(CFont * _font){
 	font = _font;
 	CHARS_PER_WIDTH=CONSOLE_WIDTH/font->getCharWidth();
 	CHARS_PER_HEIGHT=CONSOLE_HEIGHT/font->getCharHeight();
-}
 
-std::string wrapword(const std::string &in){
-	std::string new_string;
-
-	return new_string;
+	printf("Set console %ix%i\n",CHARS_PER_WIDTH,CHARS_PER_HEIGHT);
 }
 
 CConsole *CConsole::getInstance(){
@@ -146,6 +142,12 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, int rgb){
 				SDL_RenderCopy(pRenderer, font_text, font->getRectChar(c), &rect_textout);
 				rect_textout.x+=rect_textout.w;
 				//}
+			}
+
+			// correct offset as needed...
+			if((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+				rect_textout.y+=rect_textout.h;
+				rect_textout.x=0;
 			}
 
 			return &rect_textout;
@@ -220,14 +222,30 @@ int CConsole::getOffsetConsolePrint(int & intermid_line){
 	int n_lines = 0;
 	intermid_line=0;
 	int offset = console_line_output.size()-1;
+	int offset_output=N_LINES_TEXT_WRAP(output);
 
-	while(offset>0 && n_lines < CHARS_PER_HEIGHT){
-		n_lines+=console_line_output[offset].n_lines;
-		offset--;
-	}
+	if(offset>offset_output)
 
-	if(n_lines>CHARS_PER_HEIGHT){
-		intermid_line=n_lines-CHARS_PER_HEIGHT;
+
+	if(offset>0){
+
+		do{
+			n_lines+=console_line_output[offset--].n_lines;
+
+		}while(offset>0 && (n_lines < CHARS_PER_HEIGHT));
+
+		if(n_lines>=CHARS_PER_HEIGHT){
+			intermid_line=n_lines-CHARS_PER_HEIGHT+1;
+
+		}
+
+		if(n_lines>=(CHARS_PER_HEIGHT-1)){
+			// rest output...
+			offset+=N_LINES_TEXT_WRAP(output);
+		}
+
+
+
 	}
 
 	return offset;

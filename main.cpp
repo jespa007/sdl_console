@@ -20,18 +20,20 @@
 #define WIDTH_VIDEO  320
 #define HEIGHT_VIDEO 200
 
+#define RESOLUTION_COLUMNS  10
+#define RESOLUTION_ROWS     4
+
+
 //const char *about="ZetScript 1.2.0 2017 (c) Jordi Espada\n";
 
 void one_iter();
-
-
 
 CFont *font=NULL;
 CConsole *console=NULL;
 bool quit = false;
 
-#define WIDTH_CHAR  8
-#define HEIGHT_CHAR 16
+//#define WIDTH_CHAR  8
+//#define HEIGHT_CHAR 16
 
 bool error = false;
 
@@ -55,7 +57,7 @@ int main(int argc, char *argv[]){
 
 	console=CConsole::getInstance();
 
-	console->init(WIDTH_VIDEO,HEIGHT_VIDEO);
+	console->init(RESOLUTION_COLUMNS*8,RESOLUTION_ROWS*16);
 	//--------------------------------------------------
 	// 1. Make our C++ bindings for script calls
 
@@ -63,7 +65,7 @@ int main(int argc, char *argv[]){
 
 	font = new CFont();
 
-	font->load("font.bmp",WIDTH_CHAR,HEIGHT_CHAR);
+	font->load("font.bmp",8,16);
 
 
 	console->setFont(font);
