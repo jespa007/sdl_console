@@ -146,6 +146,7 @@ add_executable(sdl_console${POST_NAME}
 	${PROJECT_SOURCE_DIR}/CConsole.cpp
 	${PROJECT_SOURCE_DIR}/CImage.cpp
 	${PROJECT_SOURCE_DIR}/CInput.cpp
+	${PROJECT_SOURCE_DIR}/font_8x13.c
 	${PROJECT_SOURCE_DIR}/CFont.cpp
 	
 

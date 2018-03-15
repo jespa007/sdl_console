@@ -17,11 +17,12 @@
  *  See LICENSE file for details.
  */
 
-#define WIDTH_VIDEO  320
-#define HEIGHT_VIDEO 200
+
 
 #define RESOLUTION_COLUMNS  10
 #define RESOLUTION_ROWS     4
+
+
 
 
 //const char *about="ZetScript 1.2.0 2017 (c) Jordi Espada\n";
@@ -65,7 +66,8 @@ int main(int argc, char *argv[]){
 
 	font = new CFont();
 
-	font->load("font.bmp",8,16);
+	//font->load("font.bmp",8,16);
+	font->load((const unsigned char **)NULL,13,256);
 
 
 	console->setFont(font);

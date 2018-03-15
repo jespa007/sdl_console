@@ -1,9 +1,5 @@
 #include "CConsole.h"
 
-#define RMASK32 0x000000ff
-#define GMASK32 0x0000ff00
-#define BMASK32 0x00ff0000
-#define AMASK32 0xff000000
 #define SHIFT_OR_CAPS_ON(e) (e.key.keysym.mod & (KMOD_SHIFT|KMOD_CAPS))
 
 #define N_LINES_TEXT_WRAP(text) ((text.size()/CHARS_PER_WIDTH)+1)
@@ -107,6 +103,7 @@ int CConsole::getWidth(){
 int CConsole::getHeight(){
 	return CONSOLE_HEIGHT;
 }
+
 
 SDL_Renderer * CConsole::getRenderer(){
 	return pRenderer;

@@ -76,6 +76,8 @@ public:
 
 	void setFont(CFont * font);
 	void toggleFullscreen();
+
+
 	SDL_Renderer * getRenderer();
 
 	int getWidth();
