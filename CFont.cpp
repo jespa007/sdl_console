@@ -6,7 +6,7 @@
 #include "CFont.h"
 #include "CConsole.h"
 
-#include "font_8x13.h"
+#include "font_8x16.h"
 
 CFont::CFont(){
 
@@ -73,9 +73,9 @@ bool CFont::load(const unsigned char ** pixelmap,int _char_height, int total_cha
 		for(int c=0; c < total_chars;c++){
 
 			for(int y=0; y < _char_height ;y++){
-				pixels=((unsigned char *)srf->pixels + (_char_height-y)*scanline_width+offsetX);
-				for(unsigned x=0; x < _char_width;x++){
-					unsigned int pm=font_8x13[c][y];
+				pixels=((unsigned char *)srf->pixels + (y)*scanline_width+offsetX);
+				for(unsigned x=0;x<_char_width;x++){
+					unsigned int pm=font_8x16[c][y];
 					if(pm & (0x1<<x)){
 						*((unsigned int *)pixels)=RMASK32|GMASK32|BMASK32;
 					}

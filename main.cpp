@@ -67,7 +67,7 @@ int main(int argc, char *argv[]){
 	font = new CFont();
 
 	//font->load("font.bmp",8,16);
-	font->load((const unsigned char **)NULL,13,256);
+	font->load((const unsigned char **)NULL,16,256);
 
 
 	console->setFont(font);

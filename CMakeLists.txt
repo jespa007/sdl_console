@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
  
-project(zs_ge)
+project(sdl_console)
 
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -146,7 +146,7 @@ add_executable(sdl_console${POST_NAME}
 	${PROJECT_SOURCE_DIR}/CConsole.cpp
 	${PROJECT_SOURCE_DIR}/CImage.cpp
 	${PROJECT_SOURCE_DIR}/CInput.cpp
-	${PROJECT_SOURCE_DIR}/font_8x13.c
+	${PROJECT_SOURCE_DIR}/font_8x16.c
 	${PROJECT_SOURCE_DIR}/CFont.cpp
 	
 
@@ -162,7 +162,7 @@ if ( "${EMSCRIPTEN}" STREQUAL "yes" )
 else()
 
 	
-	configure_file(${PROJECT_SOURCE_DIR}/font.bmp ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/font.bmp COPYONLY)
+	
 
 	
 	if (MINGW)
