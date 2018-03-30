@@ -8,7 +8,9 @@
 #include "CImage.h"
 
 
-
+#define SDL_CONSOLE_MAJOR 0
+#define SDL_CONSOLE_MINOR 0
+#define SDL_CONSOLE_PATCH 1
 
 
 class CFont:public CImage{
@@ -23,7 +25,7 @@ public:
 	CFont();
 
 	bool load(const char * file,int char_width,int char_height);
-	bool load(const unsigned char ** pixelmap,int char_height, int total_chars);
+	bool load_bitmapped(const unsigned char *pixelmap,int char_height, int total_chars);
 
 	int getCharWidth();
 	int getCharHeight();
