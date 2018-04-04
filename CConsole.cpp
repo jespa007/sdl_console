@@ -1,11 +1,17 @@
 #include "CConsole.h"
 #include "font_8x16.c"
+#include "font_8x16s.c"
+#include "font_8x8.c"
+
 #include <iostream>
 
+#define MOUSE_QUAD_COLLIDE(x1,y1,x2,y2) ((x1)<=(xmouse) && xmouse <= (x2) && (y1)<=ymouse && ymouse <= (y2))
 #define SHIFT_OR_CAPS_ON(e) (e.key.keysym.mod & (KMOD_SHIFT|KMOD_CAPS))
 
 #define N_LINES_TEXT_WRAP(text) ((text.size()/CHARS_PER_WIDTH)+1)
 
+#define POPUP_WIDTH  50
+#define POPUP_HEIGHT 50
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
@@ -17,7 +23,7 @@ CConsole *CConsole::console=NULL;
 CConsole::CConsole(){
 
 	input = CInput::getInstance();
-	font = NULL;
+	console_font = NULL;
 
 	start_ms=0;
 	is_blink=false;
@@ -42,15 +48,20 @@ CConsole::CConsole(){
 	prompt=">";
 
 	selecting=false;
-	start_select_char=0;
-	end_select_char=0;
+	start_select_char=-1;
+	end_select_char=-1;
 	x1_sel=-1;
 	x2_sel=-1;
 	y2_sel=-1;
 	y1_sel=-1;
-
-
+	popup_font=NULL;
+	edit_copy_popup_open=false;
 	quit=false;
+	xmouse=0;
+	ymouse=0;
+	xpopup=0;
+	ypopup=0;
+
 }
 
 bool CConsole::blink_500ms(){
@@ -108,9 +119,12 @@ void CConsole::init(int col_width, int col_height){
 		exit(EXIT_FAILURE);
     }
 
-	font = new CFont();
+	console_font = new CFont();
 	//font->load("font.bmp",8,16);
-	font->load_bitmapped((const unsigned char *)font_8x16,CHAR_HEIGHT,256);
+	console_font->load_bitmapped((const unsigned char *)font_8x16,CHAR_HEIGHT,256);
+
+	popup_font = new CFont();
+	popup_font->load_bitmapped((const unsigned char *)font_8x16s,16,256);
 
 
     //Enable text input
@@ -160,15 +174,15 @@ void CConsole::clear(Uint8 r, Uint8 g, Uint8 b){
 
 
 SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
-	if(font){
-		SDL_Texture *font_text=font->getTexture();
+	if(console_font){
+		SDL_Texture *font_text=console_font->getTexture();
 		if(font_text){
 
-			rect_textout={x,y,font->getCharWidth(),font->getCharHeight()};
+			rect_textout={x,y,console_font->getCharWidth(),console_font->getCharHeight()};
 			for(int i=0; i < MIN(char_cursor,(int)strlen(c_text)); i++){
 
 
-				if((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+				if((rect_textout.x+console_font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
 					rect_textout.y+=rect_textout.h;
 					rect_textout.x=0;
 				}
@@ -176,7 +190,7 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 			}
 
 			// correct offset as needed...
-			if((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+			if((rect_textout.x+console_font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
 				rect_textout.y+=rect_textout.h;
 				rect_textout.x=0;
 			}
@@ -188,7 +202,7 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 	return NULL;
 }
 
-SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, int rgb){
+SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int rgb){
 	if(font){
 		SDL_Texture *font_text=font->getTexture();
 		if(font_text){
@@ -247,7 +261,7 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, int rgb){
 	return NULL;
 }
 
-void CConsole::drawChar(int x,int y, char c_text, int rgb){
+void CConsole::drawChar(int x,int y, char c_text, CFont *font,int rgb){
 	if(font){
 		SDL_Texture *font_text=font->getTexture();
 		if(font_text){
@@ -398,6 +412,56 @@ unsigned CConsole::getTotalLines(){
 	return n_lines+N_LINES_TEXT_WRAP(output);
 }
 
+void CConsole::togglePopup(){
+	edit_copy_popup_open=!edit_copy_popup_open;
+	if(edit_copy_popup_open){
+		xpopup=xmouse;
+		ypopup=ymouse;
+	}
+}
+
+void CConsole::updatePopup(){
+	if(edit_copy_popup_open){
+
+		/*SDL_Rect fillRect = { xpopup, ypopup, POPUP_WIDTH,POPUP_HEIGHT  };
+		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0xFF );
+		SDL_RenderFillRect( pRenderer, &fillRect );
+		fillRect = { xpopup, ypopup, POPUP_WIDTH-1,POPUP_HEIGHT-1  };
+		SDL_SetRenderDrawColor( pRenderer, 0x7F, 0x7F, 0x7F, 0xFF );
+
+		SDL_RenderFillRect( pRenderer, &fillRect );*/
+
+		renderPopup();
+	}
+
+
+}
+
+void CConsole::renderPopup(){
+	if(edit_copy_popup_open){
+
+		int x=xpopup,  y=ypopup;
+
+		// background ...
+		SDL_Rect fillRect = { x, y, POPUP_WIDTH,POPUP_HEIGHT  };
+		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0xFF );
+		SDL_RenderFillRect( pRenderer, &fillRect );
+		fillRect = { x, y, POPUP_WIDTH-2,POPUP_HEIGHT-2  };
+		SDL_SetRenderDrawColor( pRenderer, 0x7F, 0x7F, 0x7F, 0xFF );
+
+		SDL_RenderFillRect( pRenderer, &fillRect );
+
+		// Render options...
+
+		y+=5;
+		drawText(x+5,y,"Copy",popup_font,(start_select_char < end_select_char)?(MOUSE_QUAD_COLLIDE(xpopup,ypopup,xpopup+POPUP_WIDTH,ypopup+16)?0x00FF00:0xFFFFFF):0x1F1F1F);
+		drawText(x+5,y+=(16+4),"Paste",popup_font,MOUSE_QUAD_COLLIDE(xpopup,ypopup+16+4,xpopup+POPUP_WIDTH,ypopup+32+4)?0x00FF00:0xFFFFFF);
+
+
+	}
+}
+
+
 const char * CConsole::update(){
 	bool cr=false;
 	bool typed_input=false;
@@ -408,7 +472,7 @@ const char * CConsole::update(){
 
 
 	// draw selected char...
-	if(selecting || (end_select_char != -1 && start_select_char!=-1)){
+	if((end_select_char< start_select_char)){
 
 
 		//printf("%i %i %i %i\n",x1, y1, x2-x1, y2-y1);
@@ -429,7 +493,7 @@ const char * CConsole::update(){
 
 	for(unsigned i=offset; i < console_line_output.size(); i++){
 		for(int l=((int)i==offset)?intermid:0; l < console_line_output[i].n_lines; l++){
-			rect=drawText(0,offsetY,console_line_output[i].text[l],console_line_output[i].rgb);
+			rect=drawText(0,offsetY,console_line_output[i].text[l],console_font,console_line_output[i].rgb);
 			console_text+=console_line_output[i].text[l]+string("\n");
 			offsetY+=rect->h;
 			lines++;
@@ -456,13 +520,13 @@ const char * CConsole::update(){
 	}
 
 	console_text+=string(output_start);
-	drawText(0,offsetY,output_start);
+	drawText(0,offsetY,output_start,console_font);
 
 	if(blink_500ms()){
 
 		rect = getCurrentCursor(0,offsetY,output_start);
 		if(rect){
-			drawChar(rect->x,rect->y,22);
+			drawChar(rect->x,rect->y,22,console_font);
 		}
 	}
 
@@ -470,27 +534,52 @@ const char * CConsole::update(){
 	{
 		switch(e.type) {
 			case SDL_MOUSEBUTTONDOWN:
+
+				xmouse=e.button.x;
+				ymouse=e.button.y;
+
 				if(e.button.button==SDL_BUTTON_LEFT){
-					start_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
-					end_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
 
-					x1_sel=(start_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
-					y1_sel=(start_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
 
-					x2_sel=(end_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
-					y2_sel=(end_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
+					if(edit_copy_popup_open){
+						edit_copy_popup_open=false;
+					}
 
-					selecting=true;
+
+
+						start_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
+						end_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
+
+						x1_sel=(start_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
+						y1_sel=(start_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
+
+						x2_sel=(end_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
+						y2_sel=(end_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
+
+						selecting=true;
+
+				}
+
+				if(e.button.button==SDL_BUTTON_RIGHT){
+					togglePopup();
 				}
 				break;
 
 			case SDL_MOUSEBUTTONUP:
+				xmouse=e.button.x;
+				ymouse=e.button.y;
+
+
 				if(e.button.button==SDL_BUTTON_LEFT){
 					selecting=false;
 				}
 				break;
 			case SDL_MOUSEMOTION:
+				xmouse=e.button.x;
+				ymouse=e.button.y;
 				if(selecting){
+
+
 					end_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
 					x2_sel=(end_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
 					y2_sel=(end_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
@@ -551,6 +640,10 @@ const char * CConsole::update(){
 							output.pop_back();
 						}
 						break;
+					case SDLK_APPLICATION:
+						togglePopup();
+						//printf("key 0x%X\n",e.key.keysym.sym);
+						break;
 					default:
 						break;
 				}
@@ -567,6 +660,8 @@ const char * CConsole::update(){
 		}
 
 	}
+
+	updatePopup();
 
 
 

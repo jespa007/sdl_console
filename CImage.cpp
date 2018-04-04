@@ -22,7 +22,7 @@ SDL_Texture *  CImage::SurfaceToTexture(SDL_Surface *srf){
 SDL_Surface *  CImage::createSurface(int width, int height){
 
 	 SDL_Surface * surface = SDL_CreateRGBSurface(0, width, height, 32,
-	                                   0, 0, 0, 0);
+	                                   RMASK32, GMASK32, BMASK32, AMASK32);
 	    if (surface == NULL) {
 	    	fprintf(stderr,"SDL_CreateRGBSurface() failed: %s", SDL_GetError());
 

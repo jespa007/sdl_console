@@ -78,7 +78,9 @@ bool CFont::load_bitmapped(const unsigned char *pixelmap,int _char_height, int t
 					unsigned int pm=*((pixelmap + c * _char_height) + y);// = j + 2;
 					//unsigned int pm=(const unsigned char **)[c][y];
 					if(pm & (0x1<<x)){
-						*((unsigned int *)pixels)=RMASK32|GMASK32|BMASK32;
+						*((unsigned int *)pixels)=AMASK32|RMASK32|GMASK32|BMASK32;
+					}else{
+						*((unsigned int *)pixels)=0;
 					}
 					pixels+=4;
 				}

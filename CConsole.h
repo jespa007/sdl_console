@@ -46,13 +46,17 @@ class CConsole{
 	int CONSOLE_HEIGHT;
 	short CHARS_PER_WIDTH;
 	short CHARS_PER_HEIGHT;
+	CFont *popup_font;
+	bool edit_copy_popup_open;
+	int xmouse,ymouse;
+	int xpopup,ypopup;
 
 	bool quit;
 	string str_type_input;
 	int char_cursor;
 	int history_cursor;
 
-	CFont *font;
+	CFont *console_font;
 
 	SDL_Rect rect_textout;
 
@@ -68,13 +72,16 @@ class CConsole{
 
 	SDL_Window* pWindow = NULL;
 
+	void togglePopup();
+	void updatePopup();
+	void renderPopup();
 
 	bool blink_500ms();
 
 	void clear(Uint8 r, Uint8 g, Uint8 b);
 	void setColor(Uint8 r, Uint8 g, Uint8 b);
-	SDL_Rect * drawText(int x,int y,  const char * text, int rgb=-1);
-	void drawChar(int x,int y,  const char c, int rgb=-1);
+	SDL_Rect * drawText(int x,int y,  const char * text, CFont *font, int rgb=-1);
+	void drawChar(int x,int y,  const char c, CFont *font, int rgb=-1);
 	SDL_Rect *getCurrentCursor(int x,int y, const char * c_text);
 	tConsoleLineOutput * print(const char *c);
 	int getOffsetConsolePrint(int & intermid_line);
