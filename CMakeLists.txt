@@ -152,27 +152,13 @@ add_executable(sdl_console${POST_NAME}
 )
 
 # Library
-if ( "${EMSCRIPTEN}" STREQUAL "yes" )
-
-	set_target_properties(engine${POST_NAME} PROPERTIES LINK_FLAGS " -s USE_SDL=2 ")
-
-	target_link_libraries(engine${POST_NAME} SDL2main SDL2)
- 	
+if (MINGW)
+	find_library(SDL2_LIB  NAMES SDL2  )
+	target_link_libraries(sdl_console${POST_NAME} mingw32  SDL2main SDL2)
 else()
-
-	
-	
-
-	
-	if (MINGW)
-		find_library(SDL2_LIB  NAMES SDL2  )
-		target_link_libraries(sdl_console${POST_NAME} mingw32  SDL2main SDL2)
-	else()
-		target_link_libraries(sdl_console${POST_NAME} SDL2main SDL2)
-	endif()
-	
+	target_link_libraries(sdl_console${POST_NAME} SDL2main SDL2)
 endif()
-
+	
 
 
 

@@ -8,7 +8,13 @@
 #define MOUSE_QUAD_COLLIDE(x1,y1,x2,y2) ((x1)<=(xmouse) && xmouse <= (x2) && (y1)<=ymouse && ymouse <= (y2))
 #define SHIFT_OR_CAPS_ON(e) (e.key.keysym.mod & (KMOD_SHIFT|KMOD_CAPS))
 
+#define MOUSE_COLLIDE_COPY_ITEM  (MOUSE_QUAD_COLLIDE(xpopup,ypopup,xpopup+POPUP_WIDTH,ypopup+16))
+#define MOUSE_COLLIDE_PASTE_ITEM (MOUSE_QUAD_COLLIDE(xpopup,ypopup+16+4,xpopup+POPUP_WIDTH,ypopup+32+4))
+
 #define N_LINES_TEXT_WRAP(text) ((text.size()/CHARS_PER_WIDTH)+1)
+
+#define ALERT_WIDTH  80
+#define ALERT_HEIGHT 40
 
 #define POPUP_WIDTH  50
 #define POPUP_HEIGHT 50
@@ -62,6 +68,8 @@ CConsole::CConsole(){
 	xpopup=0;
 	ypopup=0;
 
+	alert_timeout=0;
+	text_alert="";
 }
 
 bool CConsole::blink_500ms(){
@@ -202,11 +210,14 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 	return NULL;
 }
 
-SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int rgb){
+SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int rgb, unsigned int properties){
 	if(font){
 		SDL_Texture *font_text=font->getTexture();
 		if(font_text){
 
+			if(properties & CENTER_TEXT_PROPERTY){ // only works with texts without carry returns...
+				x-=(font->getCharWidth()*strlen(c_text))/2;
+			}
 
 
 			rect_textout={x,y,font->getCharWidth(),font->getCharHeight()};
@@ -215,7 +226,7 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int 
 
 
 
-				if((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+				if(((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)){ // carry return ...
 					rect_textout.y+=rect_textout.h;
 					rect_textout.x=0;
 				}
@@ -249,7 +260,7 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int 
 			}
 
 			// correct offset as needed...
-			if((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+			if(((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)){ // carry return ...
 				rect_textout.y+=rect_textout.h;
 				rect_textout.x=0;
 			}
@@ -412,7 +423,7 @@ unsigned CConsole::getTotalLines(){
 	return n_lines+N_LINES_TEXT_WRAP(output);
 }
 
-void CConsole::togglePopup(){
+void CConsole::toggleApplicationPopup(){
 	edit_copy_popup_open=!edit_copy_popup_open;
 	if(edit_copy_popup_open){
 		xpopup=xmouse;
@@ -420,8 +431,10 @@ void CConsole::togglePopup(){
 	}
 }
 
-void CConsole::updatePopup(){
+void CConsole::updateApplicationPopup(){
 	if(edit_copy_popup_open){
+
+
 
 		/*SDL_Rect fillRect = { xpopup, ypopup, POPUP_WIDTH,POPUP_HEIGHT  };
 		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0xFF );
@@ -431,13 +444,13 @@ void CConsole::updatePopup(){
 
 		SDL_RenderFillRect( pRenderer, &fillRect );*/
 
-		renderPopup();
+		renderApplicationPopup();
 	}
 
 
 }
 
-void CConsole::renderPopup(){
+void CConsole::renderApplicationPopup(){
 	if(edit_copy_popup_open){
 
 		int x=xpopup,  y=ypopup;
@@ -454,11 +467,31 @@ void CConsole::renderPopup(){
 		// Render options...
 
 		y+=5;
-		drawText(x+5,y,"Copy",popup_font,(start_select_char < end_select_char)?(MOUSE_QUAD_COLLIDE(xpopup,ypopup,xpopup+POPUP_WIDTH,ypopup+16)?0x00FF00:0xFFFFFF):0x1F1F1F);
-		drawText(x+5,y+=(16+4),"Paste",popup_font,MOUSE_QUAD_COLLIDE(xpopup,ypopup+16+4,xpopup+POPUP_WIDTH,ypopup+32+4)?0x00FF00:0xFFFFFF);
+		drawText(x+(POPUP_WIDTH>>1),y,"Copy",popup_font,(start_select_char < end_select_char)?(MOUSE_COLLIDE_COPY_ITEM?0x00FF00:0xFFFFFF):0x1F1F1F,CENTER_TEXT_PROPERTY);
+		drawText(x+(POPUP_WIDTH>>1),y+=(16+4),"Paste",popup_font,MOUSE_COLLIDE_PASTE_ITEM?0x00FF00:0xFFFFFF,CENTER_TEXT_PROPERTY);
 
 
 	}
+}
+
+void CConsole::alert(int time,const char *s,...){
+	alert_timeout = SDL_GetTicks()+time;
+
+	text_alert=s;
+}
+
+void CConsole::updateAlert(){
+	if(SDL_GetTicks() < alert_timeout){
+		renderAlert();
+	}
+}
+
+void CConsole::renderAlert(){
+	SDL_Rect fillRect = { (CONSOLE_WIDTH>>1)-(ALERT_WIDTH>>1), (CONSOLE_HEIGHT>>1)-(ALERT_HEIGHT>>1), ALERT_WIDTH,ALERT_HEIGHT  };
+	SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0xFF );
+	SDL_RenderFillRect( pRenderer, &fillRect );
+
+	drawText((CONSOLE_WIDTH>>1),(CONSOLE_HEIGHT>>1),text_alert,popup_font,-1,CENTER_TEXT_PROPERTY);
 }
 
 
@@ -472,13 +505,37 @@ const char * CConsole::update(){
 
 
 	// draw selected char...
-	if((end_select_char< start_select_char)){
+	if((start_select_char<end_select_char)){
+
+		// draw background char by char
+		int p = start_select_char;
+		int w=console_font->getCharWidth();
+		int h=console_font->getCharHeight();
+
+
+		SDL_Rect fillRect = { x1_sel, y1_sel, console_font->getCharWidth(), console_font->getCharHeight() };
+		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0x1F );
+		do{
+
+
+			SDL_RenderFillRect( pRenderer, &fillRect );
+
+			if((fillRect.x + w) >= CONSOLE_WIDTH){
+				fillRect.x=0;
+				fillRect.y+=h;
+			}
+			else{
+				fillRect.x+=w;
+			}
+			p++;
+
+		}while(p<end_select_char);
 
 
 		//printf("%i %i %i %i\n",x1, y1, x2-x1, y2-y1);
-		SDL_Rect fillRect = { x1_sel, y1_sel, x2_sel-x1_sel, y2_sel-y1_sel };
-		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0x1F );
-		SDL_RenderFillRect( pRenderer, &fillRect );
+
+
+
 	}
 
 
@@ -542,6 +599,13 @@ const char * CConsole::update(){
 
 
 					if(edit_copy_popup_open){
+
+						if(start_select_char < end_select_char){
+							if(MOUSE_COLLIDE_COPY_ITEM){ // copy selected text
+								alert(1000,"Text copied");
+							}
+						}
+
 						edit_copy_popup_open=false;
 					}
 
@@ -561,7 +625,7 @@ const char * CConsole::update(){
 				}
 
 				if(e.button.button==SDL_BUTTON_RIGHT){
-					togglePopup();
+					toggleApplicationPopup();
 				}
 				break;
 
@@ -641,7 +705,7 @@ const char * CConsole::update(){
 						}
 						break;
 					case SDLK_APPLICATION:
-						togglePopup();
+						toggleApplicationPopup();
 						//printf("key 0x%X\n",e.key.keysym.sym);
 						break;
 					default:
@@ -661,7 +725,8 @@ const char * CConsole::update(){
 
 	}
 
-	updatePopup();
+	updateApplicationPopup();
+	updateAlert();
 
 
 

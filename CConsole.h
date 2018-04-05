@@ -9,6 +9,8 @@
 #include "CInput.h"
 #include   <SDL2/SDL.h>
 
+#define DEFAULT_COLOR 0xAFAFAF
+
 class CConsole{
 
 	struct tConsoleLineOutput{
@@ -19,8 +21,13 @@ class CConsole{
 		tConsoleLineOutput(){
 			text=NULL;
 			n_lines=1;
-			rgb=-1;
+			rgb=DEFAULT_COLOR;
 		}
+	};
+
+	enum{
+		WRAP_WINDOW_PROPERTY=0x1,
+		CENTER_TEXT_PROPERTY=0x2
 	};
 
 	std::vector<tConsoleLineOutput> console_line_output;
@@ -72,16 +79,25 @@ class CConsole{
 
 	SDL_Window* pWindow = NULL;
 
-	void togglePopup();
-	void updatePopup();
-	void renderPopup();
+	// Application popup
+	void toggleApplicationPopup();
+	void updateApplicationPopup();
+	void renderApplicationPopup();
+
+	// Alert popup
+	Uint32 alert_timeout;
+	const char *text_alert;
+
+	void alert(int time,const char *s,...);
+	void updateAlert();
+	void renderAlert();
 
 	bool blink_500ms();
 
 	void clear(Uint8 r, Uint8 g, Uint8 b);
 	void setColor(Uint8 r, Uint8 g, Uint8 b);
-	SDL_Rect * drawText(int x,int y,  const char * text, CFont *font, int rgb=-1);
-	void drawChar(int x,int y,  const char c, CFont *font, int rgb=-1);
+	SDL_Rect * drawText(int x,int y,  const char * text, CFont *font, int rgb=DEFAULT_COLOR,unsigned int properties=WRAP_WINDOW_PROPERTY);
+	void drawChar(int x,int y,  const char c, CFont *font, int rgb=DEFAULT_COLOR);
 	SDL_Rect *getCurrentCursor(int x,int y, const char * c_text);
 	tConsoleLineOutput * print(const char *c);
 	int getOffsetConsolePrint(int & intermid_line);
