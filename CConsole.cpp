@@ -24,6 +24,8 @@
 #define CHAR_WIDTH  8
 #define CHAR_HEIGHT 16
 
+#define TAB_CHAR_WIDTH 4
+
 CConsole *CConsole::console=NULL;
 
 CConsole::CConsole(){
@@ -54,8 +56,11 @@ CConsole::CConsole(){
 	prompt=">";
 
 	selecting=false;
-	start_select_char=-1;
-	end_select_char=-1;
+	line_ini=-1;
+	col_ini=-1;
+	line_end=-1;
+	col_end=-1;
+
 	x1_sel=-1;
 	x2_sel=-1;
 	y2_sel=-1;
@@ -211,6 +216,156 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 	return NULL;
 }
 
+CConsole::tConsoleLineOutput * CConsole::print(const char *to_print_str){
+	vector<string> vec_str;//=c;
+	string str_line;
+	tConsoleLineOutput clo;
+	clo.n_lines=0;//N_LINES_TEXT_WRAP(str);
+	int n_chars_line=0;
+
+	str_line="";
+	char *ptr=(char *)to_print_str;
+	// scan lines ++
+	while(*ptr){
+
+		int repeat_char =1;
+		char c=(*ptr);
+
+		switch(*ptr){
+
+		case '\n':
+			repeat_char =0;
+			n_chars_line=0;
+			vec_str.push_back(str_line);
+			str_line="";
+			break;
+		case '\r': // ignore ...
+			repeat_char =0;
+			break;
+		case '\t':
+			c=' ';
+			repeat_char=TAB_CHAR_WIDTH;
+			break;
+		default:
+			break;
+			/*for(unsigned i=0; i < TAB_CHAR_WIDTH;i++){
+				str_line+= " ";
+			}*/
+		}
+
+		for(int r=0; r < repeat_char; r++){
+
+			str_line+=c;
+			n_chars_line++;
+
+			if(n_chars_line>=CHARS_PER_WIDTH){
+				n_chars_line=0;
+				vec_str.push_back(str_line);
+				str_line="";
+			}
+		}
+
+
+
+		/*if(((n_chars_line+width_char)>CHARS_PER_WIDTH) || *ptr=='\n'){
+
+			if((n_chars_line+width_char)>CHARS_PER_WIDTH){
+
+				vec_str.push_back(str_line);
+				str_line="";
+				//n_chars_line++;
+				n_chars_line=n_chars_line+width_char-CONSOLE_WIDTH;
+
+			}
+			else{
+				vec_str.push_back(str_line);
+				str_line="";
+				clo.n_lines++;
+				n_chars_line=0;
+			}
+		}
+		else{
+			str_line=str_line+(*ptr);
+		}
+
+		n_chars_line+=width_char;*/
+
+
+
+		ptr++;
+	}
+
+	if(str_line != ""){ // insert last line...
+		vec_str.push_back(str_line);
+	}
+
+
+	clo.n_lines=vec_str.size();
+	clo.text=(char **)malloc(sizeof(char *)*vec_str.size());
+	//unsigned total_length=strlen(c);
+
+	for(unsigned i=0; i < vec_str.size(); i++){
+
+
+
+		unsigned len =vec_str[i].size();
+		/*if(vec_str[i].size()<(unsigned)CHARS_PER_WIDTH){
+			len=vec_str[i].size();
+		}*/
+
+		clo.text[i]=(char *)malloc(sizeof(char)*(len+1)); // +1 for final str char...
+		memset(clo.text[i],0,sizeof(char)*(len+1)); // fill with space char ...
+		//clo.text[i][len-1]=0; // set end string char.
+		strncpy(clo.text[i],vec_str[i].c_str(),len); // copy string...
+
+		//total_length-=len;
+		//c+=len;
+	}
+
+	console_line_output.push_back(clo);
+	return &console_line_output[console_line_output.size()-1];
+}
+
+
+void CConsole::drawChar(int x,int y, char c_text, CFont *font,int rgb){
+	if(font){
+		SDL_Texture *font_text=font->getTexture();
+		if(font_text){
+
+			SDL_Rect rect_charout={x,y,font->getCharWidth(),font->getCharHeight()};
+
+			// ok check boundings ...
+			/*if(c_text=='\r' || c_text=='\n' || c_text=='\t'){ // ignore ...
+				printf("Ignored char!");
+				return &rect_charout;
+			}*/
+
+			SDL_SetTextureColorMod(font_text,
+					 rgb&0xFF,
+				   (rgb>>8)&0xFF,
+				   (rgb>>16)&0xFF);
+
+
+
+			SDL_RenderCopy(pRenderer, font_text, font->getRectChar(c_text), &rect_charout);
+
+
+			rect_charout.x+=rect_charout.w;
+			if(rect_charout.x>=CONSOLE_WIDTH){
+				rect_charout.x=0;
+				rect_charout.y+=rect_charout.h;
+			}
+
+
+
+
+		}
+	}
+
+
+}
+
+
 SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int rgb, unsigned int properties){
 	if(font){
 		SDL_Texture *font_text=font->getTexture();
@@ -220,65 +375,53 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int 
 				x-=(font->getCharWidth()*strlen(c_text))/2;
 			}
 
+			//SDL_Rect *rect=NULL;
 
 
 			rect_textout={x,y,font->getCharWidth(),font->getCharHeight()};
+			SDL_SetTextureColorMod(font_text,
+									 rgb&0xFF,
+								    (rgb>>8)&0xFF,
+								    (rgb>>16)&0xFF);
+
+
 			for(unsigned i=0; i < strlen(c_text); i++){
 				char c=c_text[i];
-				int w_char=font->getCharWidth();
+				int repeat_char=1;
+				//int w_char=font->getCharWidth();
 
 				if(c=='\r') // ignore ...
 					continue;
 
-				if(c=='\t'){ // advance next char by 4 spaces...
-					w_char *=4;
-				}
-
-
-				if((((rect_textout.x+w_char)>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)) || c=='\n'){ // carry return ...
+				if(c=='\n'){ // ignore ...
+					rect_textout.x=0;
 					rect_textout.y+=rect_textout.h;
+					continue;
+				}
 
-					if((rect_textout.x+w_char)>CONSOLE_WIDTH){
-						rect_textout.x=rect_textout.x+w_char-CONSOLE_WIDTH;
-					}
-					else{
-						rect_textout.x=0;
-					}
+				if(c=='\t'){ // advance next char by 4 spaces...
+					//w_char *=TAB_CHAR_WIDTH;
+					c=' ';
+					repeat_char=TAB_CHAR_WIDTH;
 				}
 
 
-				SDL_SetTextureColorMod(font_text,
-										 rgb&0xFF,
-									    (rgb>>8)&0xFF,
-									    (rgb>>16)&0xFF);
+				for(int r=0; r < repeat_char; r++){
 
-
-				//else{ // advance ...
-				if(start_select_char!=-1){
-
-					if(
-							x1_sel <= rect_textout.x && rect_textout.x <= x2_sel &&
-							y1_sel <= rect_textout.y && rect_textout.y <= y2_sel
-					){
-					SDL_SetTextureColorMod(font_text,
-							 0,
-						    0x1F,
-						    0);
-
-					}
-				}
-
-
-				if(c!='\t' && c!='\n' && c!='\r'){
 					SDL_RenderCopy(pRenderer, font_text, font->getRectChar(c), &rect_textout);
+
+
+					rect_textout.x+=rect_textout.w;
+					if(rect_textout.x>=CONSOLE_WIDTH){
+						rect_textout.x=0;
+						rect_textout.y+=rect_textout.h;
+					}
 				}
-				rect_textout.x+=w_char;
-				//}
 			}
 
 
 			// correct offset as needed...
-			if(((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)){ // carry return ...
+			if(((rect_textout.x+font->getCharWidth())>=CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)){ // carry return ...
 				rect_textout.y+=rect_textout.h;
 				rect_textout.x=0;
 			}
@@ -290,20 +433,7 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int 
 	return NULL;
 }
 
-void CConsole::drawChar(int x,int y, char c_text, CFont *font,int rgb){
-	if(font){
-		SDL_Texture *font_text=font->getTexture();
-		if(font_text){
-			SDL_SetTextureColorMod(font_text,
-					 rgb&0xFF,
-				   (rgb>>8)&0xFF,
-				   (rgb>>16)&0xFF);
 
-			SDL_Rect rect={x,y,font->getCharWidth(),font->getCharHeight()};
-			SDL_RenderCopy(pRenderer, font_text, font->getRectChar(c_text), &rect);
-		}
-	}
-}
 
 void CConsole::toggleFullscreen(){
 	if(!fullscreen){
@@ -316,32 +446,6 @@ void CConsole::toggleFullscreen(){
 }
 
 
-CConsole::tConsoleLineOutput * CConsole::print(const char *c){
-	string str=c;
-	tConsoleLineOutput clo;
-	clo.n_lines=N_LINES_TEXT_WRAP(str);
-
-	clo.text=(char **)malloc(sizeof(char *)*clo.n_lines);
-	unsigned total_length=strlen(c);
-
-	for(int i=0; i < clo.n_lines; i++){
-		unsigned len =CHARS_PER_WIDTH;
-		if(total_length<(unsigned)CHARS_PER_WIDTH){
-			len=total_length;
-		}
-
-		clo.text[i]=(char *)malloc(sizeof(char)*(CHARS_PER_WIDTH+1)); // +1 for final str char...
-		memset(clo.text[i],32,sizeof(char)*(CHARS_PER_WIDTH)); // fill with space char ...
-		clo.text[i][CHARS_PER_WIDTH-1]=0; // set end string char.
-		strncpy(clo.text[i],c,len); // copy string...
-
-		total_length-=len;
-		c+=len;
-	}
-
-	console_line_output.push_back(clo);
-	return &console_line_output[console_line_output.size()-1];
-}
 
 std::vector<std::string> split_string(const std::string& str,
                                       const std::string& delimiter)
@@ -422,12 +526,6 @@ int CConsole::getOffsetConsolePrint(int & intermid_line){
 				//offset++;
 			}
 		}
-
-
-		/*if(n_lines>=(CHARS_PER_HEIGHT-1)){
-			// rest output...
-			offset+=n_lines_output;
-		}*/
 	}
 
 
@@ -453,13 +551,17 @@ void CConsole::toggleApplicationPopup(){
 
 void CConsole::copyText(){
 
-	if(start_select_char<end_select_char){
-		string copy=console_text.substr(start_select_char,end_select_char);
+	if(line_ini< line_end && col_ini < col_end){
+		string copy="";//console_text.substr(start_select_char,end_select_char);
 
 
-		printf("copy %i %i %i %s\n",start_select_char,end_select_char,console_text.size(),copy.c_str());
+		/*printf("copy %i %i %i %s\n",start_select_char,end_select_char,console_text.size(),copy.c_str());
 		start_select_char=-1;
-		end_select_char=-1;
+		end_select_char=-1;*/
+		line_ini=-1;
+		line_end=-1;
+		col_ini=-1;
+		col_end=-1;
 
 		SDL_SetClipboardText(copy.c_str());
 		alert(1000,"Text copied");
@@ -519,7 +621,7 @@ void CConsole::renderApplicationPopup(){
 		// Render options...
 
 		y+=5;
-		drawText(x+(POPUP_WIDTH>>1),y,"Copy",popup_font,(start_select_char < end_select_char)?(MOUSE_COLLIDE_COPY_ITEM?0x00FF00:0xFFFFFF):0x1F1F1F,CENTER_TEXT_PROPERTY);
+		drawText(x+(POPUP_WIDTH>>1),y,"Copy",popup_font,(((line_ini < line_end) && (col_ini < col_end)))?(MOUSE_COLLIDE_COPY_ITEM?0x00FF00:0xFFFFFF):0x1F1F1F,CENTER_TEXT_PROPERTY);
 		drawText(x+(POPUP_WIDTH>>1),y+=(16+4),"Paste",popup_font,MOUSE_COLLIDE_PASTE_ITEM?0x00FF00:0xFFFFFF,CENTER_TEXT_PROPERTY);
 
 
@@ -555,38 +657,40 @@ const char * CConsole::update(){
 	clear(0,0,0);
 
 
+	if((line_ini <= line_end) && (col_ini<=col_end) && (line_ini > 0)){
 
-	// draw selected char...
-	if((start_select_char<end_select_char)){
-
-		// draw background char by char
-		int p = start_select_char;
-		int w=console_font->getCharWidth();
-		int h=console_font->getCharHeight();
-
-
-		SDL_Rect fillRect = { x1_sel, y1_sel, console_font->getCharWidth(), console_font->getCharHeight() };
 		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0x1F );
-		do{
+		//int x1 = console_font->getCharWidth()*col_ini;
+		//int y1 = line_ini*CONSOLE_WIDTH;
 
+		// render first line..
+		SDL_Rect fillRect = {
+				  x1_sel
+				, y1_sel
+				, CONSOLE_WIDTH-x1_sel
+				, console_font->getCharHeight() };
+		SDL_RenderFillRect( pRenderer, &fillRect );
 
+		// render middle..
+		for(int l=line_ini+1;l < (line_end-1); l++){
+			fillRect = {
+							  0
+							, (line_ini)*console_font->getCharHeight()
+							, CONSOLE_WIDTH
+							, console_font->getCharHeight() };
 			SDL_RenderFillRect( pRenderer, &fillRect );
-
-			if((fillRect.x + w) >= CONSOLE_WIDTH){
-				fillRect.x=0;
-				fillRect.y+=h;
-			}
-			else{
-				fillRect.x+=w;
-			}
-			p++;
-
-		}while(p<end_select_char);
+		}
 
 
-		//printf("%i %i %i %i\n",x1, y1, x2-x1, y2-y1);
-
-
+		// render last line..
+		if(line_ini < line_end){
+		 fillRect = {
+				  0
+				, y2_sel-console_font->getCharHeight()
+				, x2_sel
+				, console_font->getCharHeight() };
+		 SDL_RenderFillRect( pRenderer, &fillRect );
+		}
 
 	}
 
@@ -655,16 +759,18 @@ const char * CConsole::update(){
 
 					}
 
+						line_ini = e.button.y/CHAR_HEIGHT;
+						col_ini = e.button.x/CHAR_WIDTH;
+
+						line_end =  line_ini;
+						col_end = line_end;
 
 
-						start_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
-						end_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
+						x1_sel=col_ini*CHAR_WIDTH;
+						y1_sel=line_ini*CHAR_HEIGHT;
 
-						x1_sel=(start_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
-						y1_sel=(start_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
-
-						x2_sel=(end_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
-						y2_sel=(end_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
+						x2_sel=x1_sel;
+						y2_sel=y1_sel;
 
 						selecting=true;
 
@@ -690,9 +796,11 @@ const char * CConsole::update(){
 				if(selecting){
 
 
-					end_select_char=(e.button.x/CHAR_WIDTH+((e.button.y/CHAR_HEIGHT)*CHARS_PER_WIDTH));
-					x2_sel=(end_select_char%CHARS_PER_WIDTH)*(CHAR_WIDTH);
-					y2_sel=(end_select_char/CHARS_PER_WIDTH)*CHAR_HEIGHT;//*CONSOLE_WIDTH;
+					line_end = e.button.y/CHAR_HEIGHT;
+					col_end = e.button.x/CHAR_WIDTH;
+
+					x2_sel=col_end*CHAR_WIDTH;
+					y2_sel=line_end*CHAR_HEIGHT;
 
 				}
 				break;

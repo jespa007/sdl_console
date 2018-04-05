@@ -44,8 +44,8 @@ class CConsole{
 	std::string console_text;
 
 	bool selecting;
-	int start_select_char;
-	int end_select_char;
+	int line_ini,col_ini;
+	int line_end,col_end;
 	//Render red filled quad
 	int x1_sel,y1_sel;
 	int x2_sel,y2_sel;
