@@ -70,6 +70,7 @@ CConsole::CConsole(){
 
 	alert_timeout=0;
 	text_alert="";
+	console_text="";
 }
 
 bool CConsole::blink_500ms(){
@@ -220,15 +221,29 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int 
 			}
 
 
+
 			rect_textout={x,y,font->getCharWidth(),font->getCharHeight()};
 			for(unsigned i=0; i < strlen(c_text); i++){
 				char c=c_text[i];
+				int w_char=font->getCharWidth();
+
+				if(c=='\r') // ignore ...
+					continue;
+
+				if(c=='\t'){ // advance next char by 4 spaces...
+					w_char *=4;
+				}
 
 
-
-				if(((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)){ // carry return ...
+				if((((rect_textout.x+w_char)>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)) || c=='\n'){ // carry return ...
 					rect_textout.y+=rect_textout.h;
-					rect_textout.x=0;
+
+					if((rect_textout.x+w_char)>CONSOLE_WIDTH){
+						rect_textout.x=rect_textout.x+w_char-CONSOLE_WIDTH;
+					}
+					else{
+						rect_textout.x=0;
+					}
 				}
 
 
@@ -254,10 +269,13 @@ SDL_Rect *CConsole::drawText(int x,int y, const char * c_text, CFont *font, int 
 				}
 
 
-				SDL_RenderCopy(pRenderer, font_text, font->getRectChar(c), &rect_textout);
-				rect_textout.x+=rect_textout.w;
+				if(c!='\t' && c!='\n' && c!='\r'){
+					SDL_RenderCopy(pRenderer, font_text, font->getRectChar(c), &rect_textout);
+				}
+				rect_textout.x+=w_char;
 				//}
 			}
+
 
 			// correct offset as needed...
 			if(((rect_textout.x+font->getCharWidth())>CONSOLE_WIDTH) && (properties & WRAP_WINDOW_PROPERTY)){ // carry return ...
@@ -312,9 +330,10 @@ CConsole::tConsoleLineOutput * CConsole::print(const char *c){
 			len=total_length;
 		}
 
-		clo.text[i]=(char *)malloc(sizeof(char)*(len+1));
-		memset(clo.text[i],0,sizeof(char)*(len+1));
-		strncpy(clo.text[i],c,len+1);
+		clo.text[i]=(char *)malloc(sizeof(char)*(CHARS_PER_WIDTH+1)); // +1 for final str char...
+		memset(clo.text[i],32,sizeof(char)*(CHARS_PER_WIDTH)); // fill with space char ...
+		clo.text[i][CHARS_PER_WIDTH-1]=0; // set end string char.
+		strncpy(clo.text[i],c,len); // copy string...
 
 		total_length-=len;
 		c+=len;
@@ -431,6 +450,39 @@ void CConsole::toggleApplicationPopup(){
 	}
 }
 
+
+void CConsole::copyText(){
+
+	if(start_select_char<end_select_char){
+		string copy=console_text.substr(start_select_char,end_select_char);
+
+
+		printf("copy %i %i %i %s\n",start_select_char,end_select_char,console_text.size(),copy.c_str());
+		start_select_char=-1;
+		end_select_char=-1;
+
+		SDL_SetClipboardText(copy.c_str());
+		alert(1000,"Text copied");
+	}
+
+
+	if(edit_copy_popup_open){
+		edit_copy_popup_open=false;
+	}
+}
+
+void CConsole::pasteText(){
+	if(edit_copy_popup_open){
+		edit_copy_popup_open=false;
+	}
+
+	if(SDL_HasClipboardText()){
+		output += SDL_GetClipboardText();
+		alert(1000,"Text paste");
+	}
+}
+
+
 void CConsole::updateApplicationPopup(){
 	if(edit_copy_popup_open){
 
@@ -546,15 +598,16 @@ const char * CConsole::update(){
 	SDL_Rect * rect=0;
 	int lines=0;
 	const char *output_start=output.c_str();
-	string console_text="";
+	console_text="";
 
 	for(unsigned i=offset; i < console_line_output.size(); i++){
 		for(int l=((int)i==offset)?intermid:0; l < console_line_output[i].n_lines; l++){
 			rect=drawText(0,offsetY,console_line_output[i].text[l],console_font,console_line_output[i].rgb);
-			console_text+=console_line_output[i].text[l]+string("\n");
+			console_text+=console_line_output[i].text[l];
 			offsetY+=rect->h;
 			lines++;
 		}
+		console_text+=string("\n");
 	}
 
 	int starting_line=N_LINES_TEXT_WRAP(output);
@@ -563,18 +616,7 @@ const char * CConsole::update(){
 		output_start=output.c_str()+CHARS_PER_WIDTH*starting_line;
 	}
 
-	if(cr){
 
-		print(output.c_str());
-		str_type_input=(char *)(output.c_str()+prompt.size());
-		cr=false;
-		typed_input = true;
-
-		history.push_back(str_type_input);
-		history_cursor=history.size();
-		setOutput("");
-
-	}
 
 	console_text+=string(output_start);
 	drawText(0,offsetY,output_start,console_font);
@@ -600,13 +642,17 @@ const char * CConsole::update(){
 
 					if(edit_copy_popup_open){
 
-						if(start_select_char < end_select_char){
-							if(MOUSE_COLLIDE_COPY_ITEM){ // copy selected text
-								alert(1000,"Text copied");
-							}
+						//if(start_select_char < end_select_char){
+						if(MOUSE_COLLIDE_COPY_ITEM){ // copy selected text
+							copyText();
+						}if(MOUSE_COLLIDE_PASTE_ITEM){
+							pasteText();
+						}else{
+							edit_copy_popup_open=false;
 						}
+						//}
 
-						edit_copy_popup_open=false;
+
 					}
 
 
@@ -655,19 +701,13 @@ const char * CConsole::update(){
 				switch(e.key.keysym.sym){
 					case 	KEY_v:
 						if(SDL_GetModState() & KMOD_CTRL){
-							output += SDL_GetClipboardText();
+							pasteText();
 						}
 						break;
 					case 	KEY_c:
 						if(SDL_GetModState() & KMOD_CTRL){
 
-							if(start_select_char<end_select_char){
-								string copy=console_text.substr(start_select_char,end_select_char);
-
-								printf("copy %i %i %s\n",start_select_char,end_select_char,copy.c_str());
-								start_select_char=-1;
-								end_select_char=-1;
-							}
+							copyText();
 							//SDL_GetClipboardText();
 						}
 						break;
@@ -725,8 +765,24 @@ const char * CConsole::update(){
 
 	}
 
+
+	if(cr){
+
+		print(output.c_str());
+		str_type_input=(char *)(output.c_str()+prompt.size());
+		cr=false;
+		typed_input = true;
+
+		history.push_back(str_type_input);
+		history_cursor=history.size();
+		setOutput("");
+
+	}
+
 	updateApplicationPopup();
 	updateAlert();
+
+
 
 
 

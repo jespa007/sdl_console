@@ -9,7 +9,7 @@
 #include "CInput.h"
 #include   <SDL2/SDL.h>
 
-#define DEFAULT_COLOR 0xAFAFAF
+#define CONSOLE_TEXT_COLOR 0xAFAFAF
 
 class CConsole{
 
@@ -21,7 +21,7 @@ class CConsole{
 		tConsoleLineOutput(){
 			text=NULL;
 			n_lines=1;
-			rgb=DEFAULT_COLOR;
+			rgb=CONSOLE_TEXT_COLOR;
 		}
 	};
 
@@ -40,7 +40,8 @@ class CConsole{
 	bool is_blink;
 
 	int currentX,currentY;
-	std::string partial_str;
+
+	std::string console_text;
 
 	bool selecting;
 	int start_select_char;
@@ -79,6 +80,9 @@ class CConsole{
 
 	SDL_Window* pWindow = NULL;
 
+	void copyText();
+	void pasteText();
+
 	// Application popup
 	void toggleApplicationPopup();
 	void updateApplicationPopup();
@@ -96,8 +100,8 @@ class CConsole{
 
 	void clear(Uint8 r, Uint8 g, Uint8 b);
 	void setColor(Uint8 r, Uint8 g, Uint8 b);
-	SDL_Rect * drawText(int x,int y,  const char * text, CFont *font, int rgb=DEFAULT_COLOR,unsigned int properties=WRAP_WINDOW_PROPERTY);
-	void drawChar(int x,int y,  const char c, CFont *font, int rgb=DEFAULT_COLOR);
+	SDL_Rect * drawText(int x,int y,  const char * text, CFont *font, int rgb=CONSOLE_TEXT_COLOR,unsigned int properties=WRAP_WINDOW_PROPERTY);
+	void drawChar(int x,int y,  const char c, CFont *font, int rgb=CONSOLE_TEXT_COLOR);
 	SDL_Rect *getCurrentCursor(int x,int y, const char * c_text);
 	tConsoleLineOutput * print(const char *c);
 	int getOffsetConsolePrint(int & intermid_line);
