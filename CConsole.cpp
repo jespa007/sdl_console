@@ -11,7 +11,10 @@
 #define MOUSE_COLLIDE_COPY_ITEM  (MOUSE_QUAD_COLLIDE(xpopup,ypopup,xpopup+POPUP_WIDTH,ypopup+16))
 #define MOUSE_COLLIDE_PASTE_ITEM (MOUSE_QUAD_COLLIDE(xpopup,ypopup+16+4,xpopup+POPUP_WIDTH,ypopup+32+4))
 
-#define N_LINES_TEXT_WRAP(text) ((text.size()/CHARS_PER_WIDTH)+1)
+//#define N_LINES_TEXT_WRAP(text) ((text.size()/CHARS_PER_WIDTH)+1)
+
+
+
 
 #define ALERT_WIDTH  80
 #define ALERT_HEIGHT 40
@@ -20,6 +23,7 @@
 #define POPUP_HEIGHT 50
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX(a,b) ((a)>(b)?(a):(b))
 
 #define CHAR_WIDTH  8
 #define CHAR_HEIGHT 16
@@ -55,16 +59,16 @@ CConsole::CConsole(){
 
 	prompt=">";
 
+	select_start_line=-1;
+	select_start_col=-1;
+
+
 	selecting=false;
 	line_ini=-1;
 	col_ini=-1;
 	line_end=-1;
 	col_end=-1;
 
-	x1_sel=-1;
-	x2_sel=-1;
-	y2_sel=-1;
-	y1_sel=-1;
 	popup_font=NULL;
 	edit_copy_popup_open=false;
 	quit=false;
@@ -75,8 +79,34 @@ CConsole::CConsole(){
 
 	alert_timeout=0;
 	text_alert="";
-	console_text="";
+	//console_text="";
 }
+
+
+int CConsole::N_LINES_TEXT_WRAP(const string & c_text){
+
+
+	int n_lines=1;
+	int n_chars=0;
+
+	for(unsigned i=0; i < c_text.size(); i++){
+
+
+		if((n_chars)>CHARS_PER_WIDTH || c_text[i]=='\n'){ // carry return ...
+			rect_textout.y+=rect_textout.h;
+			n_chars=0;
+			n_lines++;
+		}
+		else{
+			n_chars++;
+
+		}
+	}
+
+
+	return n_lines;
+}
+
 
 bool CConsole::blink_500ms(){
 	if(start_ms<SDL_GetTicks()){
@@ -196,11 +226,13 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 			for(int i=0; i < MIN(char_cursor,(int)strlen(c_text)); i++){
 
 
-				if((rect_textout.x+console_font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+				if((rect_textout.x+console_font->getCharWidth())>CONSOLE_WIDTH || c_text[i]=='\n'){ // carry return ...
 					rect_textout.y+=rect_textout.h;
 					rect_textout.x=0;
 				}
-				rect_textout.x+=rect_textout.w;
+				else{
+					rect_textout.x+=rect_textout.w;
+				}
 			}
 
 			// correct offset as needed...
@@ -220,7 +252,7 @@ CConsole::tConsoleLineOutput * CConsole::print(const char *to_print_str){
 	vector<string> vec_str;//=c;
 	string str_line;
 	tConsoleLineOutput clo;
-	clo.n_lines=0;//N_LINES_TEXT_WRAP(str);
+	clo.n_lines=0;
 	int n_chars_line=0;
 
 	str_line="";
@@ -521,7 +553,7 @@ int CConsole::getOffsetConsolePrint(int & intermid_line){
 
 
 		if((n_lines+n_lines_output)>=CHARS_PER_HEIGHT){
-			intermid_line=(n_lines+n_lines_output)-CHARS_PER_HEIGHT;//-(N_LINES_TEXT_WRAP(output)-1);
+			intermid_line=(n_lines+n_lines_output)-CHARS_PER_HEIGHT;
 			if(intermid_line==0){ // no lines but
 				//offset++;
 			}
@@ -532,13 +564,6 @@ int CConsole::getOffsetConsolePrint(int & intermid_line){
 	return offset;
 }
 
-unsigned CConsole::getTotalLines(){
-	unsigned n_lines =0;
-	for(unsigned i = 0; i < console_line_output.size(); i++){
-		n_lines+=console_line_output[i].n_lines;
-	}
-	return n_lines+N_LINES_TEXT_WRAP(output);
-}
 
 void CConsole::toggleApplicationPopup(){
 	edit_copy_popup_open=!edit_copy_popup_open;
@@ -551,8 +576,20 @@ void CConsole::toggleApplicationPopup(){
 
 void CConsole::copyText(){
 
-	if(line_ini< line_end && col_ini < col_end){
+	if(line_ini< line_end || col_ini < col_end){
 		string copy="";//console_text.substr(start_select_char,end_select_char);
+
+		copy+=console_text[line_ini].substr(col_ini);
+		copy+="\n";
+
+		for(int i = line_ini+1; i < (line_end-1);i++){//MIN(line_end,console_text.size()); i++){
+
+			copy+=console_text[i]+"\n";
+		}
+
+		copy+=console_text[line_end-1].substr(0,col_end);
+
+		//copy+=console_text[i]+"\n";
 
 
 		/*printf("copy %i %i %i %s\n",start_select_char,end_select_char,console_text.size(),copy.c_str());
@@ -579,7 +616,11 @@ void CConsole::pasteText(){
 	}
 
 	if(SDL_HasClipboardText()){
-		output += SDL_GetClipboardText();
+		output.insert(MIN((int)output.size(),char_cursor),string(SDL_GetClipboardText()));
+		char_cursor+=strlen(SDL_GetClipboardText());
+
+		printf("cursor %i\n",char_cursor);
+
 		alert(1000,"Text paste");
 	}
 }
@@ -657,7 +698,13 @@ const char * CConsole::update(){
 	clear(0,0,0);
 
 
-	if((line_ini <= line_end) && (col_ini<=col_end) && (line_ini > 0)){
+	if(line_ini>=0 && (line_ini< line_end || col_ini < col_end)){// && col_ini <= col_end){//(x1_sel < x2_sel) && (y1_sel < y2_sel )){
+
+		int x1_sel=col_ini*CHAR_WIDTH;
+		int y1_sel=line_ini*CHAR_HEIGHT;
+
+		int x2_sel=(col_end+1)*CHAR_WIDTH;
+		int y2_sel=(line_end+1)*CHAR_HEIGHT;
 
 		SDL_SetRenderDrawColor( pRenderer, 0x1F, 0x1F, 0x1F, 0x1F );
 		//int x1 = console_font->getCharWidth()*col_ini;
@@ -667,15 +714,17 @@ const char * CConsole::update(){
 		SDL_Rect fillRect = {
 				  x1_sel
 				, y1_sel
-				, CONSOLE_WIDTH-x1_sel
+				, line_ini < line_end ? CONSOLE_WIDTH-x1_sel:(x2_sel-x1_sel)
 				, console_font->getCharHeight() };
 		SDL_RenderFillRect( pRenderer, &fillRect );
 
+
+
 		// render middle..
-		for(int l=line_ini+1;l < (line_end-1); l++){
+		for(int l=line_ini+1;l < (line_end); l++){
 			fillRect = {
 							  0
-							, (line_ini)*console_font->getCharHeight()
+							, (l)*console_font->getCharHeight()
 							, CONSOLE_WIDTH
 							, console_font->getCharHeight() };
 			SDL_RenderFillRect( pRenderer, &fillRect );
@@ -702,16 +751,16 @@ const char * CConsole::update(){
 	SDL_Rect * rect=0;
 	int lines=0;
 	const char *output_start=output.c_str();
-	console_text="";
+	console_text.clear();//="";
 
 	for(unsigned i=offset; i < console_line_output.size(); i++){
 		for(int l=((int)i==offset)?intermid:0; l < console_line_output[i].n_lines; l++){
 			rect=drawText(0,offsetY,console_line_output[i].text[l],console_font,console_line_output[i].rgb);
-			console_text+=console_line_output[i].text[l];
+			console_text.push_back(console_line_output[i].text[l]);
 			offsetY+=rect->h;
 			lines++;
 		}
-		console_text+=string("\n");
+		//console_text+=string("\n");
 	}
 
 	int starting_line=N_LINES_TEXT_WRAP(output);
@@ -722,7 +771,30 @@ const char * CConsole::update(){
 
 
 
-	console_text+=string(output_start);
+	//console_text+=string(output_start);
+	// split output in n lines...
+	//int chars_left = (unsigned)output_start.size();
+	int chars_left=strlen(output_start);
+	char *ptr=(char *)output_start;
+	while(chars_left>0){
+		char ch_copy[CHARS_PER_WIDTH]={0};
+		int len = CHARS_PER_WIDTH;
+		if(chars_left < len){
+			len = chars_left;
+		}
+		strncpy(ch_copy,ptr,len);
+
+		console_text.push_back(string(ch_copy));
+
+
+		chars_left-=len;
+		ptr+=len;
+
+	}
+
+
+
+
 	drawText(0,offsetY,output_start,console_font);
 
 	if(blink_500ms()){
@@ -759,18 +831,20 @@ const char * CConsole::update(){
 
 					}
 
-						line_ini = e.button.y/CHAR_HEIGHT;
-						col_ini = e.button.x/CHAR_WIDTH;
+
+						select_start_line=line_ini= e.button.y/CHAR_HEIGHT;
+						select_start_col=col_ini=e.button.x/CHAR_WIDTH;
+
 
 						line_end =  line_ini;
-						col_end = line_end;
+						col_end = col_ini;
 
 
-						x1_sel=col_ini*CHAR_WIDTH;
-						y1_sel=line_ini*CHAR_HEIGHT;
+						//x1_sel=col_ini*CHAR_WIDTH;
+						//y1_sel=line_ini*CHAR_HEIGHT;
 
-						x2_sel=x1_sel;
-						y2_sel=y1_sel;
+						//x2_sel=(col_ini)*CHAR_WIDTH;
+						//y2_sel=(line_ini)*CHAR_HEIGHT;
 
 						selecting=true;
 
@@ -795,12 +869,21 @@ const char * CConsole::update(){
 				ymouse=e.button.y;
 				if(selecting){
 
+					//line_ini = mouse_select_start_x/CHAR_HEIGHT;
+					//col_ini = mouse_select_start_y/CHAR_WIDTH;
 
-					line_end = e.button.y/CHAR_HEIGHT;
-					col_end = e.button.x/CHAR_WIDTH;
+					int line = e.button.y/CHAR_HEIGHT;
+					int col = e.button.x/CHAR_WIDTH;
 
-					x2_sel=col_end*CHAR_WIDTH;
-					y2_sel=line_end*CHAR_HEIGHT;
+					line_ini=MIN(select_start_line,line);
+					col_ini=MIN(select_start_col,col);
+
+					line_end=MAX(select_start_line,line);
+					col_end=MAX(select_start_col,col);
+
+
+					//x2_sel=(col_end+1)*CHAR_WIDTH;
+					//y2_sel=(line_end+1)*CHAR_HEIGHT;
 
 				}
 				break;

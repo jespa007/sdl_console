@@ -28,6 +28,7 @@ class CConsole{
 	enum{
 		WRAP_WINDOW_PROPERTY=0x1,
 		CENTER_TEXT_PROPERTY=0x2
+
 	};
 
 	std::vector<tConsoleLineOutput> console_line_output;
@@ -41,14 +42,16 @@ class CConsole{
 
 	int currentX,currentY;
 
-	std::string console_text;
+	vector<std::string> console_text;
 
 	bool selecting;
 	int line_ini,col_ini;
 	int line_end,col_end;
 	//Render red filled quad
-	int x1_sel,y1_sel;
-	int x2_sel,y2_sel;
+	//int x1_sel,y1_sel;
+	//int x2_sel,y2_sel;
+	int select_start_line;
+	int select_start_col;
 
 	int CONSOLE_WIDTH;
 	int CONSOLE_HEIGHT;
@@ -105,8 +108,10 @@ class CConsole{
 	SDL_Rect *getCurrentCursor(int x,int y, const char * c_text);
 	tConsoleLineOutput * print(const char *c);
 	int getOffsetConsolePrint(int & intermid_line);
-	unsigned getTotalLines();
+
 	void setOutput(const string & str);
+
+	int N_LINES_TEXT_WRAP(const string & c_text);
 
 	CConsole();
 	~CConsole();
