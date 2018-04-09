@@ -16,7 +16,7 @@
 
 
 
-#define ALERT_WIDTH  80
+#define ALERT_WIDTH  160
 #define ALERT_HEIGHT 40
 
 #define POPUP_WIDTH  50
@@ -268,6 +268,7 @@ CConsole::tConsoleLineOutput * CConsole::print(const char *to_print_str){
 		case '\n':
 			repeat_char =0;
 			n_chars_line=0;
+			str_line+="\n"; // the carry return should be take account in order to have a right copy later...
 			vec_str.push_back(str_line);
 			str_line="";
 			break;
@@ -507,12 +508,14 @@ void CConsole::printError(const char *text_in,...){
 	vsprintf(text_out,  text_in,  ap);
 	va_end(ap);
 
-	vector<string> line=split_string(text_out,"\n");
+	/*vector<string> line=split_string(text_out,"\n");
 
 	for(unsigned l=0; l < line.size(); l++){
 		tConsoleLineOutput * clo = print(line[l].c_str());
 		clo->rgb=RMASK32;
-	}
+	}*/
+	tConsoleLineOutput * clo =print(text_out);
+	clo->rgb=RMASK32;
 }
 
 void CConsole::printOut(const char *text_in,...){
@@ -522,11 +525,11 @@ void CConsole::printOut(const char *text_in,...){
 	vsprintf(text_out,  text_in,  ap);
 	va_end(ap);
 
-	vector<string> line=split_string(text_out,"\n");
+	//vector<string> line=split_string(text_out,"\n");
 
-	for(unsigned l=0; l < line.size(); l++){
-		print(line[l].c_str());
-	}
+	//for(unsigned l=0; l < line.size(); l++){
+	print(text_out);//line[l].c_str());
+	//}
 }
 
 int CConsole::getOffsetConsolePrint(int & intermid_line){
@@ -580,14 +583,16 @@ void CConsole::copyText(){
 		string copy="";//console_text.substr(start_select_char,end_select_char);
 
 		copy+=console_text[line_ini].substr(col_ini);
-		copy+="\n";
 
-		for(int i = line_ini+1; i < (line_end-1);i++){//MIN(line_end,console_text.size()); i++){
 
-			copy+=console_text[i]+"\n";
+		for(int i = line_ini+1; i < (line_end);i++){//MIN(line_end,console_text.size()); i++){
+
+			copy+=console_text[i];
 		}
 
-		copy+=console_text[line_end-1].substr(0,col_end);
+		if(line_ini< line_end){
+			copy+=console_text[line_end].substr(0,col_end);
+		}
 
 		//copy+=console_text[i]+"\n";
 
@@ -777,7 +782,7 @@ const char * CConsole::update(){
 	int chars_left=strlen(output_start);
 	char *ptr=(char *)output_start;
 	while(chars_left>0){
-		char ch_copy[CHARS_PER_WIDTH]={0};
+		char ch_copy[CHARS_PER_WIDTH+1]={0};
 		int len = CHARS_PER_WIDTH;
 		if(chars_left < len){
 			len = chars_left;
@@ -959,6 +964,7 @@ const char * CConsole::update(){
 
 	if(cr){
 
+		output+="\n";
 		print(output.c_str());
 		str_type_input=(char *)(output.c_str()+prompt.size());
 		cr=false;
