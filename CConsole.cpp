@@ -230,9 +230,10 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 					rect_textout.y+=rect_textout.h;
 					rect_textout.x=0;
 				}
-				else{
+				//else{
+
 					rect_textout.x+=rect_textout.w;
-				}
+				//}
 			}
 
 			// correct offset as needed...
@@ -257,6 +258,10 @@ CConsole::tConsoleLineOutput * CConsole::print(const char *to_print_str){
 
 	str_line="";
 	char *ptr=(char *)to_print_str;
+	char buffer[4096];
+	sprintf(buffer,"%s\n",to_print_str);
+	ptr=buffer;
+
 	// scan lines ++
 	while(*ptr){
 
@@ -331,6 +336,8 @@ CConsole::tConsoleLineOutput * CConsole::print(const char *to_print_str){
 	if(str_line != ""){ // insert last line...
 		vec_str.push_back(str_line);
 	}
+
+	//vec_str.push_back("\n");
 
 
 	clo.n_lines=vec_str.size();
@@ -964,7 +971,7 @@ const char * CConsole::update(){
 
 	if(cr){
 
-		output+="\n";
+		//output+="\n";
 		print(output.c_str());
 		str_type_input=(char *)(output.c_str()+prompt.size());
 		cr=false;

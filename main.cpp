@@ -28,7 +28,9 @@ int main(int argc, char *argv[]){
 
 	console->init(RESOLUTION_COLUMNS,RESOLUTION_ROWS);
 
-	console->printOut("SDL console %02i.%02i.%02i\n",SDL_CONSOLE_MAJOR,SDL_CONSOLE_MINOR,SDL_CONSOLE_PATCH);
+	console->printOut("SDL console %02i.%02i.%02i",SDL_CONSOLE_MAJOR,SDL_CONSOLE_MINOR,SDL_CONSOLE_PATCH);
+	console->printOut("");
+
 
 	console->setPrompt("co>");
 	//--------------------------------------------------
