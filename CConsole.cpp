@@ -225,22 +225,28 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 			rect_textout={x,y,console_font->getCharWidth(),console_font->getCharHeight()};
 			for(int i=0; i < MIN(char_cursor,(int)strlen(c_text)); i++){
 
+				//if(c_text[i]=='\r') continue;
 
-				if((rect_textout.x+console_font->getCharWidth())>CONSOLE_WIDTH || c_text[i]=='\n'){ // carry return ...
+				rect_textout.x+=rect_textout.w;
+
+
+				if(c_text[i]=='\n'){
 					rect_textout.y+=rect_textout.h;
 					rect_textout.x=0;
 				}
-				//else{
-
-					rect_textout.x+=rect_textout.w;
-				//}
+				else{
+					if(rect_textout.x>=CONSOLE_WIDTH ){ // carry return ...
+						rect_textout.y+=rect_textout.h;
+						rect_textout.x=0;
+					}
+				}
 			}
 
 			// correct offset as needed...
-			if((rect_textout.x+console_font->getCharWidth())>CONSOLE_WIDTH){ // carry return ...
+			/*if(rect_textout.x>=CONSOLE_WIDTH){ // carry return ...
 				rect_textout.y+=rect_textout.h;
 				rect_textout.x=0;
-			}
+			}*/
 
 			return &rect_textout;
 		}
@@ -628,8 +634,17 @@ void CConsole::pasteText(){
 	}
 
 	if(SDL_HasClipboardText()){
-		output.insert(MIN((int)output.size(),char_cursor),string(SDL_GetClipboardText()));
-		char_cursor+=strlen(SDL_GetClipboardText());
+		char * aux=SDL_GetClipboardText();
+		string partial_out="";
+		size_t len = strlen(aux);
+		for(size_t i=0; i < len; i++){
+			if(aux[i]!='\r'){
+				partial_out+=aux[i];
+			}
+		}
+		output.insert(MIN((int)output.size(),char_cursor),partial_out);
+		char_cursor+=partial_out.size();
+
 
 		printf("cursor %i\n",char_cursor);
 
@@ -943,8 +958,9 @@ const char * CConsole::update(){
 				//	case SDLK_F5: printError("hello"); break;
 				//	case SDLK_F9: toggleFullscreen(); break;
 					case SDLK_BACKSPACE:
-						if((output.size()-prompt.size()) > 0){
-							output.pop_back();
+						if((unsigned)char_cursor>prompt.size()){
+							output.erase(output.begin()+(char_cursor-1));
+							char_cursor--;
 						}
 						break;
 					case SDLK_APPLICATION:
