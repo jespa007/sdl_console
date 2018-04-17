@@ -223,27 +223,43 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 		if(font_text){
 
 			rect_textout={x,y,console_font->getCharWidth(),console_font->getCharHeight()};
-			for(int i=0; i < MIN(char_cursor,(int)strlen(c_text)); i++){
+			int current_char=0;//prompt.size();
+			int max_string=(int)strlen(c_text);
+			int max_cursor=MIN(char_cursor,(int)strlen(c_text));
+
+			char last_char=0;
+
+			while(current_char < max_cursor){
+
+				last_char=c_text[current_char];
+				if((current_char+1)<max_cursor){
+					last_char=c_text[current_char+1];
+				}
+
+
+
 
 				//if(c_text[i]=='\r') continue;
-
-				rect_textout.x+=rect_textout.w;
-
-
-				if(c_text[i]=='\n'){
+				if(last_char=='\n'){
 					rect_textout.y+=rect_textout.h;
 					rect_textout.x=0;
 				}
-				else{
-					if(rect_textout.x>=CONSOLE_WIDTH ){ // carry return ...
+				else if(rect_textout.x>=CONSOLE_WIDTH ){ // carry return ...
 						rect_textout.y+=rect_textout.h;
 						rect_textout.x=0;
-					}
+				}else{
+					rect_textout.x+=rect_textout.w;
 				}
+
+				current_char++;
 			}
 
+			printf("%c\n",last_char);
+
+			//printf("current:%c\n",last_char);
+
 			// correct offset as needed...
-			/*if(rect_textout.x>=CONSOLE_WIDTH){ // carry return ...
+			/*if(rect_textout.x>=CONSOLE_WIDTH||){ // carry return ...
 				rect_textout.y+=rect_textout.h;
 				rect_textout.x=0;
 			}*/
