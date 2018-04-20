@@ -11,11 +11,6 @@
 #define MOUSE_COLLIDE_COPY_ITEM  (MOUSE_QUAD_COLLIDE(xpopup,ypopup,xpopup+POPUP_WIDTH,ypopup+16))
 #define MOUSE_COLLIDE_PASTE_ITEM (MOUSE_QUAD_COLLIDE(xpopup,ypopup+16+4,xpopup+POPUP_WIDTH,ypopup+32+4))
 
-//#define N_LINES_TEXT_WRAP(text) ((text.size()/CHARS_PER_WIDTH)+1)
-
-
-
-
 #define ALERT_WIDTH  160
 #define ALERT_HEIGHT 40
 
@@ -91,7 +86,6 @@ int CConsole::N_LINES_TEXT_WRAP(const string & c_text){
 
 	for(unsigned i=0; i < c_text.size(); i++){
 
-
 		if((n_chars)>CHARS_PER_WIDTH || c_text[i]=='\n'){ // carry return ...
 			rect_textout.y+=rect_textout.h;
 			n_chars=0;
@@ -102,8 +96,6 @@ int CConsole::N_LINES_TEXT_WRAP(const string & c_text){
 
 		}
 	}
-
-
 	return n_lines;
 }
 
@@ -232,12 +224,6 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 			while(current_char < max_cursor){
 
 				last_char=c_text[current_char];
-				if((current_char+1)<max_cursor){
-					last_char=c_text[current_char+1];
-				}
-
-
-
 
 				//if(c_text[i]=='\r') continue;
 				if(last_char=='\n'){
@@ -254,7 +240,21 @@ SDL_Rect *CConsole::getCurrentCursor(int x,int y, const char * c_text){
 				current_char++;
 			}
 
-			printf("%c\n",last_char);
+
+			if(rect_textout.x>=CONSOLE_WIDTH ){ // carry return ...
+				rect_textout.y+=rect_textout.h;
+				rect_textout.x=0;
+			}
+			else if((unsigned)current_char<strlen(c_text)){
+				if(c_text[current_char]=='\n'){
+					rect_textout.y+=rect_textout.h;
+					rect_textout.x=0;
+				}
+			}
+
+
+
+			//printf("%c %i %i\n",last_char,char_cursor,strlen(c_text));
 
 			//printf("current:%c\n",last_char);
 
@@ -819,8 +819,10 @@ const char * CConsole::update(){
 	//int chars_left = (unsigned)output_start.size();
 	int chars_left=strlen(output_start);
 	char *ptr=(char *)output_start;
+	char ch_copy[CHARS_PER_WIDTH+1];//={0};
 	while(chars_left>0){
-		char ch_copy[CHARS_PER_WIDTH+1]={0};
+
+		memset(ch_copy,CHARS_PER_WIDTH+1,0);
 		int len = CHARS_PER_WIDTH;
 		if(chars_left < len){
 			len = chars_left;
@@ -828,7 +830,6 @@ const char * CConsole::update(){
 		strncpy(ch_copy,ptr,len);
 
 		console_text.push_back(string(ch_copy));
-
 
 		chars_left-=len;
 		ptr+=len;
@@ -958,14 +959,28 @@ const char * CConsole::update(){
 							setOutput(history[history_cursor++]);
 						}
 						break;
+					case SDLK_HOME: // begin...
+						char_cursor=prompt.size();
+						break;
+					case SDLK_END: // end...
+						char_cursor = output.size();
+						break;
 					case SDLK_LEFT: // cursor left...
 						if((unsigned)char_cursor>prompt.size()){
 							char_cursor--;
+							if(output[char_cursor-1]=='\n'){
+								char_cursor--;
+							}
+
 						}
 						break;
 					case SDLK_RIGHT: // cursor right...
 						if((unsigned)char_cursor<output.size()){
 							char_cursor++;
+							if(output[char_cursor-1]=='\n'){
+								char_cursor++;
+							}
+
 						}
 						break;
 					case SDLK_ESCAPE:

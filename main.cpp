@@ -11,8 +11,13 @@
 #endif
 
 
-#define RESOLUTION_COLUMNS  80
-#define RESOLUTION_ROWS     25
+//#define RESOLUTION_COLUMNS  80
+//#define RESOLUTION_ROWS     25
+
+
+#define RESOLUTION_COLUMNS  10
+#define RESOLUTION_ROWS     10
+
 
 void one_iter();
 
