@@ -765,8 +765,9 @@ const char * CConsole::update(){
 						break;
 					case SDLK_RETURN:
 						if(SDL_GetModState() & KMOD_SHIFT){ // just put '\n
-							output+="\n";
-							char_cursor=output.size();
+							output.insert(output.begin()+char_cursor,'\n');
+							//output+="\n";
+							char_cursor++;//=output.size();
 							//char_cursor++;
 						}
 						else{
