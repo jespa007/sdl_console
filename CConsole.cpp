@@ -26,6 +26,7 @@
 #define TAB_CHAR_WIDTH 4
 
 CConsole *CConsole::console=NULL;
+const char * CConsole::sdl_console_caption="SDL console";
 
 CConsole::CConsole(){
 
@@ -73,6 +74,10 @@ CConsole::CConsole(){
 
 	alert_timeout=0;
 	text_alert="";
+}
+
+void CConsole::setCaption(const char *caption_name){
+	sdl_console_caption=caption_name;
 }
 
 int CConsole::N_LINES_TEXT_WRAP(const string & c_text){
@@ -131,7 +136,7 @@ void CConsole::init(int col_width, int col_height){
 	CHARS_PER_HEIGHT=col_height;
 
 	pWindow = SDL_CreateWindow(
-			"SDL console"
+			sdl_console_caption
 		    ,SDL_WINDOWPOS_UNDEFINED
 			,SDL_WINDOWPOS_UNDEFINED
 			,CONSOLE_WIDTH
@@ -497,7 +502,7 @@ void CConsole::copyText(){
 
 	if(line_ini< line_end || col_ini < col_end){
 		string copy="";//console_text.substr(start_select_char,end_select_char);
-		int end=MIN(console_text.size()-1,line_end);
+		int end=MIN((int)(console_text.size()-1),line_end);
 		copy+=console_text[line_ini].substr(col_ini);
 
 		for(int i = line_ini+1; i < (end);i++){//MIN(line_end,console_text.size()); i++){

@@ -35,6 +35,7 @@ class CConsole{
 	std::vector<string> history;
 
 	static CConsole *console;
+	static const char * sdl_console_caption;
 	CInput *input;
 	Uint32 start_ms;
 	string prompt;
@@ -121,7 +122,7 @@ public:
 	static CConsole *getInstance();
 	static void destroy();
 
-
+	static void setCaption(const char *);
 
 	void init(int col_width, int col_height);
 
